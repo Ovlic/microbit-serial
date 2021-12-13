@@ -1,0 +1,10 @@
+# Python caches
+__pycache__/
+*.pyc
+
+# Macos specific
+.DS_store
+
+# Vscode settings
+.vscode/
+.vscode/settings.json
