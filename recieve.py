@@ -8,6 +8,8 @@ import subprocess
 # "exist" is a function to check if a directory exists
 from os.path import exists
 
+import time
+
 
 # Exception registration
 class CannotOpenPort(Exception):
@@ -47,6 +49,10 @@ s = serial.Serial(port)
 # Set baud rate
 s.baudrate = baud
 
+print("Writing...")
+s.write(b"helloooooo")
+print("Done writing")
+
 try:
     # Loop forever or until error
     while True:
@@ -84,6 +90,23 @@ try:
             # Run applescript
             # This will run the script from "resume_audio.applescript"
             subprocess.call(['osascript', '-e', data])
+
+            # When is data playing since there is a delay
+            check = True
+            while check:
+                res = subprocess.run("pmset -g", capture_output=True, text=True, shell=True).stdout.rstrip()
+                check = res.split("displaysleep         60")[1].split(" highstandbythreshold")[0].split("\n")[0][1:]
+
+                if check:
+                    # There is audio playing
+                    check = False
+
+                    # Send string to microbit to turn off LED
+                    s.write(b"LED_off")
+
+
+                #else:
+                    # No playback
             print("Playback resumed.")
 
 except KeyboardInterrupt:
