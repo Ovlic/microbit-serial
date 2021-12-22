@@ -32,6 +32,17 @@ class Disconnected(Exception):
         return self.message
 
 
+def playback_check():
+    res = subprocess.run("pmset -g", capture_output=True, text=True, shell=True).stdout.rstrip()
+    check_isplaying = res.split("displaysleep         60")[1].split(" highstandbythreshold")[0].split("\n")[0][1:]
+    
+    if check_isplaying:
+        return True
+    else:
+        return False
+
+    
+
 # Port to microbit
 port = "/dev/cu.usbmodem14102" # Change if needed; use 'ls /dev/cu.*' and look for '/dev/cu.usbmodem'
 
@@ -48,10 +59,6 @@ s = serial.Serial(port)
 
 # Set baud rate
 s.baudrate = baud
-
-print("Writing...")
-s.write(b"helloooooo")
-print("Done writing")
 
 try:
     # Loop forever or until error
@@ -75,8 +82,12 @@ try:
         print(f"Data: '{data}'")
         
         # If data is 'play'
-        if data == "Play":
-            print("Resuming playback...")
+        if data == "Button P0 Press" or "Button P0 Press" in data:
+
+            # Check if playback is paused or not
+            play_check = playback_check()
+
+            print("Resuming Playback...") if play_check != True else print("Pausing Playback...")
             
             # Get contents of resume_audio.applescript
             f = open("resume_audio.applescript", "r")
@@ -91,23 +102,44 @@ try:
             # This will run the script from "resume_audio.applescript"
             subprocess.call(['osascript', '-e', data])
 
-            # When is data playing since there is a delay
+            # When is data playing since there is a delay in resuming audio to it actually playing
             check = True
+
+            # Loop until check is false
             while check:
-                res = subprocess.run("pmset -g", capture_output=True, text=True, shell=True).stdout.rstrip()
-                check = res.split("displaysleep         60")[1].split(" highstandbythreshold")[0].split("\n")[0][1:]
 
-                if check:
-                    # There is audio playing
-                    check = False
+                # Call function to check for change in playback
+                check_isplaying = playback_check()
 
-                    # Send string to microbit to turn off LED
-                    s.write(b"LED_off")
+                # print(f"check_isplaying: '{check_isplaying}'")
+
+                # If audio was paused
+                if play_check == False:
+                    # If audio is playing right now
+                    if check_isplaying:
+                        print("Audio is playing")
+                        # There is audio playing
+                        check = False
+
+                        # Send string to microbit to turn off LED
+                        s.write(b"LED_off")
+                    
+                    # Delay to not spam the system
+                    time.sleep(0.25)
+
+                # If audio was playing
+                elif play_check == True:
+                    # If audio is paused right now
+                    if not check_isplaying:
+                        print("Audio is paused")
+                        # There is audio playing
+                        check = False
+
+                        s.write(b"LED_off")
 
 
-                #else:
-                    # No playback
-            print("Playback resumed.")
+
+            #print("Playback resumed.") if play_check == True else print("Playback paused.")
 
 except KeyboardInterrupt:
     # If user presses Ctrl+C
@@ -137,3 +169,4 @@ except serial.serialutil.SerialException:
     
     # Raise the error (Raise means stop code with exception)
     raise
+
